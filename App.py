@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 from pathlib import Path
+from color_extractors import *
 
 from typing import List
 from PIL.Image import Image as ImageType
@@ -16,6 +17,9 @@ class ColorExtractionApp:
         self.current_index = 0
         self.image_files = []
         self.origin_image: ImageTk.PhotoImage | None = None
+
+        # 不同的提取器，统一定义到列表中
+        self.extractors: List[ColorExtractor] = [rgb_average, lab_average, median_cut_lab, final_solution]
 
         ###########################################################################################
         # 顶部按钮区
@@ -53,8 +57,8 @@ class ColorExtractionApp:
         self.right_frame.grid_propagate(False)
 
         self.color_labels: List[tk.Label] = []
-        for i in range(5):  # 预留 5 个颜色区域
-            label = tk.Label(self.right_frame, text=f"Color {i+1}", width=20, height=2, relief=tk.RIDGE)
+        for i in range(len(self.extractors)):
+            label = tk.Label(self.right_frame, text=f"Color {i+1}", width=25, height=2, relief=tk.RIDGE)
             label.grid(row=i, column=0, padx=5, pady=5, sticky="ew")
             self.color_labels.append(label)
 
@@ -102,7 +106,21 @@ class ColorExtractionApp:
         self.image_label.config(image=self.origin_image)
         self.update_label()
 
-        # TODO 调用提取算法，展示到label上
+        for i, extractor in enumerate(self.extractors):
+            label = self.color_labels[i]  # 获取对应的 Label
+            try:
+                method_name, color = extractor(image)
+
+                rgb_color = f"#{color[0]:02x}{color[1]:02x}{color[2]:02x}"  # 将 RGB 转为十六进制颜色字符串
+                label.config(text=f"{method_name}:{color[0]},{color[1]},{color[2]}")  # 显示方法名
+                label.config(bg=rgb_color)  # 设置 Label 背景颜色为提取颜色
+                brightness = 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]
+                label.config(fg="#000000" if brightness >= 128 else "#FFFFFF")  # 自动切换前景色
+            except Exception as e:
+                print(f"执行{extractor.__name__}时发生错误：{e}")
+                label.config(text="error")
+                label.config(bg="#000000")
+                label.config(fg="#FFFFFF")
 
     def prev_image(self):
         """显示上一张图片"""
