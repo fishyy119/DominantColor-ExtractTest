@@ -1,51 +1,12 @@
 from PIL import Image
 import numpy as np
-import cv2
+from core.color_space import *
 
 from typing import Callable, Tuple, List
 from numpy.typing import NDArray
 
-RGBColor = Tuple[int, int, int]
+
 ColorExtractor = Callable[[Image.Image], Tuple[str, RGBColor]]
-ColorConverter = Callable[[NDArray[np.uint8]], NDArray[np.uint8]]
-
-
-def ColorConvertBase(img: NDArray[np.uint8], cvCOLOR: int) -> NDArray[np.uint8]:
-    """
-    进行颜色空间转换
-
-    Args:
-        img (NDArray[np.uint8]): 形状为 (H, W, 3) / (L, 3) / (3,), 表示三通道颜色数据
-        cvCOOLOR (int): cv2的类型转换标识符
-
-    Returns:
-        output_img (NDArray[np.uint8]): 形状与输入相同，但颜色通道转换。
-    """
-    img = img.astype(np.uint8)
-    if img.ndim == 1:
-        # (3,) -> (1, 1, 3)
-        expand_array = np.expand_dims(np.expand_dims(img, axis=0), axis=0)
-        convert_array = cv2.cvtColor(expand_array, cvCOLOR).astype(np.uint8)
-        return convert_array[0, 0, :]  # 转回 (3,)
-    elif img.ndim == 2:
-        # (L, 3) -> (L, 1, 3)
-        expand_array = np.expand_dims(img, axis=1)
-        convert_array = cv2.cvtColor(expand_array, cvCOLOR).astype(np.uint8)
-        return convert_array[:, 0, :]  # 转回 (L, 3)
-    else:
-        return cv2.cvtColor(img, cvCOLOR).astype(np.uint8)
-
-
-RGB2LAB: ColorConverter = lambda img: ColorConvertBase(img, cv2.COLOR_RGB2LAB)
-LAB2RGB: ColorConverter = lambda img: ColorConvertBase(img, cv2.COLOR_LAB2RGB)
-
-RGB2HLS: ColorConverter = lambda img: ColorConvertBase(img, cv2.COLOR_RGB2HLS)
-RGB2HSV: ColorConverter = lambda img: ColorConvertBase(img, cv2.COLOR_RGB2HSV)
-HLS2RGB: ColorConverter = lambda img: ColorConvertBase(img, cv2.COLOR_HLS2RGB)
-
-LAB2HLS: ColorConverter = lambda img: RGB2HLS(LAB2RGB(img))
-LAB2HSV: ColorConverter = lambda img: RGB2HSV(LAB2RGB(img))
-HLS2LAB: ColorConverter = lambda img: RGB2LAB(HLS2RGB(img))
 
 
 def filter_saturated_colors(pixels: NDArray[np.uint8], threshold: int = 20) -> NDArray[np.uint8]:
@@ -88,7 +49,7 @@ def rgb_average(image: Image.Image) -> Tuple[str, RGBColor]:
     np_img = np.array(image)
     avg_color = np_img.mean(axis=(0, 1))
     r, g, b = map(int, avg_color[:3])
-    return "RGB 均值", (r, g, b)
+    return "RGB 均值", RGBColor(r, g, b)
 
 
 def lab_average(image: Image.Image) -> Tuple[str, RGBColor]:
@@ -98,10 +59,10 @@ def lab_average(image: Image.Image) -> Tuple[str, RGBColor]:
     avg_color = np_img.mean(axis=(0, 1))
     rgb_color = LAB2RGB(avg_color)
     r, g, b = map(int, rgb_color)
-    return "LAB 均值", (r, g, b)
+    return "LAB 均值", RGBColor(r, g, b)
 
 
-def median_cut_lab(image: Image.Image) -> Tuple[str, Tuple[int, int, int]]:
+def median_cut_lab(image: Image.Image) -> Tuple[str, RGBColor]:
     """
     在 LAB 颜色空间内执行中位切分算法提取主色。
 
@@ -109,7 +70,7 @@ def median_cut_lab(image: Image.Image) -> Tuple[str, Tuple[int, int, int]]:
         image (Image.Image): 输入 PIL 图像
 
     Returns:
-        List[Tuple[str, Tuple[int, int, int]]]: (方法名, 提取的 RGB 颜色)
+        List[Tuple[str, RGBColor]]: (方法名, 提取的 RGB 颜色)
     """
     num_colors: int = 5
     rgb_array = np.array(image)
@@ -145,12 +106,12 @@ def median_cut_lab(image: Image.Image) -> Tuple[str, Tuple[int, int, int]]:
     ]
 
     if len(dominant_lab_colors) != 0:
-        return "LAB 中位切分", dominant_rgb_colors[0][:3]  # type: ignore
+        return "LAB 中位切分", RGBColor.from_array(dominant_rgb_colors[0][:3])  # type: ignore
     else:
         raise IndexError("没有提取到主色")
 
 
-def final_solution(image: Image.Image) -> Tuple[str, Tuple[int, int, int]]:
+def final_solution(image: Image.Image) -> Tuple[str, RGBColor]:
     """
     最终方案
 
@@ -158,7 +119,7 @@ def final_solution(image: Image.Image) -> Tuple[str, Tuple[int, int, int]]:
         image (Image.Image): 输入 PIL 图像
 
     Returns:
-        List[Tuple[str, Tuple[int, int, int]]]: (方法名, 提取的 RGB 颜色)
+        List[Tuple[str, RGBColor]]: (方法名, 提取的 RGB 颜色)
     """
     num_colors: int = 5
     rgb_array = np.array(image)
@@ -173,7 +134,7 @@ def final_solution(image: Image.Image) -> Tuple[str, Tuple[int, int, int]]:
         avg_color = pixels.mean(axis=0)
         rgb_color = LAB2RGB(avg_color)
         r, g, b = map(int, rgb_color)
-        return "最终方案", (r, g, b)
+        return "最终方案", RGBColor(r, g, b)
     else:
         pixels = pixels_filted  # 历史遗留的变量名替换，懒得改
 
@@ -222,4 +183,4 @@ def final_solution(image: Image.Image) -> Tuple[str, Tuple[int, int, int]]:
         # 转换为 RGB
         dominant_rgb_colors = LAB2RGB(result.astype(np.uint8))
 
-        return "最终方案", tuple(dominant_rgb_colors)
+        return "最终方案", RGBColor.from_array(dominant_rgb_colors)

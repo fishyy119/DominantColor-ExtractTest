@@ -1,11 +1,14 @@
+import _project_init
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 from pathlib import Path
-from color_extractors import *
+from core.color_extraction import *
 
 from typing import List
 from PIL.Image import Image as ImageType
+
+WS_ROOT = _project_init.WS_ROOT
 
 
 class ColorExtractionApp:
@@ -77,7 +80,7 @@ class ColorExtractionApp:
 
     def load_folder(self):
         """选择文件夹并加载图片"""
-        folder = filedialog.askdirectory()
+        folder = filedialog.askdirectory(initialdir=WS_ROOT / "data")
         if not folder:
             return
 
@@ -111,10 +114,10 @@ class ColorExtractionApp:
             try:
                 method_name, color = extractor(image)
 
-                rgb_color = f"#{color[0]:02x}{color[1]:02x}{color[2]:02x}"  # 将 RGB 转为十六进制颜色字符串
-                label.config(text=f"{method_name}:{color[0]},{color[1]},{color[2]}")  # 显示方法名
+                rgb_color = f"#{color.R:02x}{color.G:02x}{color.B:02x}"  # 将 RGB 转为十六进制颜色字符串
+                label.config(text=f"{method_name}:{color.R},{color.G},{color.B}")  # 显示方法名
                 label.config(bg=rgb_color)  # 设置 Label 背景颜色为提取颜色
-                brightness = 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]
+                brightness = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B
                 label.config(fg="#000000" if brightness >= 128 else "#FFFFFF")  # 自动切换前景色
             except Exception as e:
                 print(f"执行{extractor.__name__}时发生错误：{e}")
