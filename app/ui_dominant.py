@@ -9,6 +9,7 @@ from typing import List
 from PIL.Image import Image as ImageType
 
 WS_ROOT = _project_init.WS_ROOT
+Config = _project_init.Config
 
 
 class ColorExtractionApp:
@@ -85,7 +86,7 @@ class ColorExtractionApp:
             return
 
         # 只获取图片文件
-        self.image_files = [f for f in Path(folder).iterdir() if f.suffix.lower() in {".png", ".jpg", ".jpeg"}]
+        self.image_files = [f for f in Path(folder).iterdir() if f.suffix.lower() in Config.img_suffixes]
 
         if self.image_files:
             self.current_index = 0

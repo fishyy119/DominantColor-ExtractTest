@@ -1,6 +1,6 @@
 from PIL import Image
 import numpy as np
-from core.color_space import *
+from color_space import *
 
 from typing import Callable, Tuple, List
 from numpy.typing import NDArray
@@ -150,6 +150,7 @@ def final_solution(image: Image.Image) -> Tuple[str, RGBColor]:
             # 找到方差最大的通道
             var_l, var_a, var_b = np.var(pixels, axis=0)
             # cv2中L有缩放，将其权重调整一下(2.55**2)
+            # cv2使用0-255的数值表示0-100的L
             # 但是实际的权重更小，因为不太想区分亮度
             max_var_index = np.argmax([var_l / 10, var_a, var_b])
 
