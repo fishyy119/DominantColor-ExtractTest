@@ -1,7 +1,7 @@
-import numpy as np
-import cv2
+from typing import Callable, NamedTuple, Sequence
 
-from typing import Callable, Sequence, NamedTuple
+import cv2
+import numpy as np
 from numpy.typing import NDArray
 
 CArray = NDArray[np.uint8]
@@ -55,3 +55,44 @@ HLS2RGB: ColorConverter = lambda img: ColorConvertBase(img, cv2.COLOR_HLS2RGB)
 LAB2HLS: ColorConverter = lambda img: RGB2HLS(LAB2RGB(img))
 LAB2HSV: ColorConverter = lambda img: RGB2HSV(LAB2RGB(img))
 HLS2LAB: ColorConverter = lambda img: RGB2LAB(HLS2RGB(img))
+
+"""
+cv2中的Lab：
+L: 0~255，由标准的0~100线性映射而来
+a: 0~255，相对于标准的-128~127存在一个偏移
+b: 同上
+"""
+
+
+def lab_cv2std(lab: NDArray[np.uint8]) -> NDArray[np.float32]:
+    """
+    将cv2的Lab转换为标准Lab
+
+    Args:
+        lab (CArray): 形状为 (H, W, 3) / (L, 3) / (3,), 表示三通道颜色数据
+
+    Returns:
+        std_lab (CArray): 转换后的标准Lab
+    """
+    lab_ = lab.astype(np.float32)
+    lab_[..., 0] = lab_[..., 0] * 100 / 255.0  # L: 0~255 -> 0~100
+    lab_[..., 1] -= 128.0  # a: 0~255 -> -128~127
+    lab_[..., 2] -= 128.0  # b: 同上
+    return lab_
+
+
+def lab_std2cv(lab: NDArray[np.floating]) -> NDArray[np.uint8]:
+    """
+    将标准Lab转换为cv2的Lab
+
+    Args:
+        lab (CArray): 形状为 (H, W, 3) / (L, 3) / (3,), 表示三通道颜色数据
+
+    Returns:
+        cv2_lab (CArray): 转换后的cv2 Lab
+    """
+    lab_ = lab.astype(np.float32)
+    lab_[..., 0] = lab_[..., 0] * 255.0 / 100.0  # L: 0~100 -> 0~255
+    lab_[..., 1] += 128.0  # a: -128~127 -> 0~255
+    lab_[..., 2] += 128.0  # b: 同上
+    return lab_.astype(np.uint8)

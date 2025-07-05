@@ -1,15 +1,13 @@
-import _project_init
 import tkinter as tk
-from tkinter import filedialog
-from PIL import Image, ImageTk
 from pathlib import Path
-from core.color_extraction import *
-
+from tkinter import filedialog
 from typing import List
+
+from _project_init import WS_ROOT, Config
+from PIL import Image, ImageTk
 from PIL.Image import Image as ImageType
 
-WS_ROOT = _project_init.WS_ROOT
-Config = _project_init.Config
+from core.color_extraction import *
 
 
 class ColorExtractionApp:
@@ -23,7 +21,13 @@ class ColorExtractionApp:
         self.origin_image: ImageTk.PhotoImage | None = None
 
         # 不同的提取器，统一定义到列表中
-        self.extractors: List[ColorExtractor] = [rgb_average, lab_average, median_cut_lab, final_solution]
+        self.extractors: List[ColorExtractor] = [
+            rgb_average,
+            lab_average,
+            median_cut_lab,
+            final_solution,
+            median_with_svd,
+        ]
 
         ###########################################################################################
         # 顶部按钮区
@@ -56,21 +60,24 @@ class ColorExtractionApp:
         self.image_label.pack(fill=tk.BOTH, expand=True)
 
         # 右侧（颜色提取结果）
-        self.right_frame = tk.Frame(root, width=200, height=400, bg="white")
+        self.right_frame = tk.Frame(root, width=300, height=400, bg="white")
         self.right_frame.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
         self.right_frame.grid_propagate(False)
 
-        self.color_labels: List[tk.Label] = []
-        for i in range(len(self.extractors)):
-            label = tk.Label(self.right_frame, text=f"Color {i+1}", width=25, height=2, relief=tk.RIDGE)
-            label.grid(row=i, column=0, padx=5, pady=5, sticky="ew")
-            self.color_labels.append(label)
+        self.color_rows: List[tk.Frame] = []  # 每行一个 Frame，对应一个提取器
+        self.color_labels: List[List[tk.Label]] = []  # 每个 label 的二维数组
+
+        for i, extractor in enumerate(self.extractors):
+            row_frame = tk.Frame(self.right_frame)
+            row_frame.grid(row=i, column=0, padx=5, pady=5, sticky="w")
+            self.color_rows.append(row_frame)
+            self.color_labels.append([])  # 初始化为空
 
         ##################################################################################################
         # 各行列的增长权重
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_columnconfigure(1, weight=0)
+        self.root.grid_columnconfigure(1, weight=2)
         self.root.minsize(600, 400)
 
     def update_label(self):
@@ -111,20 +118,32 @@ class ColorExtractionApp:
         self.update_label()
 
         for i, extractor in enumerate(self.extractors):
-            label = self.color_labels[i]  # 获取对应的 Label
-            try:
-                method_name, color = extractor(image)
+            row_frame = self.color_rows[i]
 
-                rgb_color = f"#{color.R:02x}{color.G:02x}{color.B:02x}"  # 将 RGB 转为十六进制颜色字符串
-                label.config(text=f"{method_name}:{color.R},{color.G},{color.B}")  # 显示方法名
-                label.config(bg=rgb_color)  # 设置 Label 背景颜色为提取颜色
-                brightness = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B
-                label.config(fg="#000000" if brightness >= 128 else "#FFFFFF")  # 自动切换前景色
-            except Exception as e:
-                print(f"执行{extractor.__name__}时发生错误：{e}")
-                label.config(text="error")
-                label.config(bg="#000000")
-                label.config(fg="#FFFFFF")
+            # 清空之前的显示
+            for label in self.color_labels[i]:
+                label.destroy()
+            self.color_labels[i].clear()
+
+            method_name, colors = extractor(image)
+            # 添加方法名标签
+            method_label = tk.Label(
+                row_frame,
+                text=method_name,
+                width=12,
+                anchor="w",
+            )
+            method_label.pack(side=tk.LEFT, padx=(0, 8))  # 稍微拉开一点间距
+            self.color_labels[i].append(method_label)
+
+            for color in colors:
+                label = tk.Label(row_frame, width=2, height=1, relief=tk.RIDGE)
+                label.pack(side=tk.LEFT, padx=2)
+                # label.config(text=f"{method_name}:{color.R},{color.G},{color.B}")  # 显示方法名
+                label.config(bg=f"#{color.R:02x}{color.G:02x}{color.B:02x}")  # 设置 Label 背景颜色为提取颜色
+                # brightness = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B
+                # label.config(fg="#000000" if brightness >= 128 else "#FFFFFF")  # 自动切换前景色
+                self.color_labels[i].append(label)
 
     def prev_image(self):
         """显示上一张图片"""
