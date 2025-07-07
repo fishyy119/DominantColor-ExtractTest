@@ -1,4 +1,5 @@
 import tkinter as tk
+from functools import partial
 from pathlib import Path
 from tkinter import filedialog
 from typing import List
@@ -22,11 +23,11 @@ class ColorExtractionApp:
 
         # 不同的提取器，统一定义到列表中
         self.extractors: List[ColorExtractor] = [
-            rgb_average,
-            lab_average,
-            median_cut_lab,
-            final_solution,
-            median_with_svd,
+            just_average,
+            single_solution,
+            partial(single_solution, use_pca=True),
+            partial(single_solution, use_pre=False),
+            partial(multi_solution, show_tree=False),
         ]
 
         ###########################################################################################
@@ -60,7 +61,7 @@ class ColorExtractionApp:
         self.image_label.pack(fill=tk.BOTH, expand=True)
 
         # 右侧（颜色提取结果）
-        self.right_frame = tk.Frame(root, width=300, height=400, bg="white")
+        self.right_frame = tk.Frame(root, width=320, height=400, bg="white")
         self.right_frame.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
         self.right_frame.grid_propagate(False)
 
@@ -77,7 +78,7 @@ class ColorExtractionApp:
         # 各行列的增长权重
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_columnconfigure(1, weight=2)
+        self.root.grid_columnconfigure(1, weight=0)
         self.root.minsize(600, 400)
 
     def update_label(self):
@@ -130,19 +131,22 @@ class ColorExtractionApp:
             method_label = tk.Label(
                 row_frame,
                 text=method_name,
-                width=12,
-                anchor="w",
+                width=14,
+                anchor="center",
+                wraplength=120,
             )
-            method_label.pack(side=tk.LEFT, padx=(0, 8))  # 稍微拉开一点间距
+            max_colors_per_row = 8
+            total_rows = len(colors) // max_colors_per_row + 1
+            method_label.grid(row=0, column=0, rowspan=total_rows, padx=(0, 8), sticky="w")
             self.color_labels[i].append(method_label)
 
-            for color in colors:
+            for j, color in enumerate(colors):
+                row = j // max_colors_per_row
+                col = (j % max_colors_per_row) + 1  # +1 是为了避开 col=0 的方法标签
+
                 label = tk.Label(row_frame, width=2, height=1, relief=tk.RIDGE)
-                label.pack(side=tk.LEFT, padx=2)
-                # label.config(text=f"{method_name}:{color.R},{color.G},{color.B}")  # 显示方法名
-                label.config(bg=f"#{color.R:02x}{color.G:02x}{color.B:02x}")  # 设置 Label 背景颜色为提取颜色
-                # brightness = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B
-                # label.config(fg="#000000" if brightness >= 128 else "#FFFFFF")  # 自动切换前景色
+                label.grid(row=row, column=col, padx=2, pady=2)
+                label.config(bg=f"#{color.R:02x}{color.G:02x}{color.B:02x}")
                 self.color_labels[i].append(label)
 
     def prev_image(self):
