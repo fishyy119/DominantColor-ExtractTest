@@ -1,5 +1,7 @@
-# Python 1.7.0
+# Python 3.12.7
 numpy
 pillow
 opencv-python
 scikit-image
+
+shapely  # 绘制递归切分效果

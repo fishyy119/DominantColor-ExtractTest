@@ -1,36 +1,41 @@
+import _test_init
 import matplotlib.pyplot as plt
 import numpy as np
+from skimage import color
 from skimage.color import lab2rgb
 
-# 创建 a-b 网格
-res = 256  # 分辨率（图像大小）
-a = np.linspace(-128, 127, res)
-b = np.linspace(-128, 127, res)
-aa, bb = np.meshgrid(a, b)
 
-# 构建 L=0 的 Lab 图像：shape (res, res, 3)
-lab = np.zeros((res, res, 3), dtype=np.float64)
-lab[..., 0] = 50  # L = 0
-lab[..., 1] = aa  # a
-lab[..., 2] = bb  # b
+def plot_lab_ab_circle(L_value=50, radius=128):
+    """绘制 CIELab 空间中 L 固定、ab 为圆形的色域分布"""
+    size = 512  # 图像尺寸
+    a = np.linspace(-radius, radius, size)
+    b = np.linspace(-radius, radius, size)
+    aa, bb = np.meshgrid(a, b)
 
-# 转换为 RGB
-rgb = lab2rgb(lab)
+    # 生成圆形 mask
+    mask = aa**2 + bb**2 <= radius**2
 
-# 屏蔽非法颜色（lab2rgb 会裁剪，但我们可以高亮不可显示的区域）
-# 可视化方式：用灰色或透明遮罩
-valid_mask = np.all((rgb >= 0) & (rgb <= 1), axis=-1)
+    # 创建 Lab 平面，默认黑
+    lab = np.zeros((size, size, 3), dtype=np.float32)
+    lab[..., 0] = L_value
+    lab[..., 1] = aa
+    lab[..., 2] = bb
 
-# 显示
-plt.figure(figsize=(6, 6))
-plt.imshow(rgb, extent=[-128, 127, -128, 127])
-plt.title("L=0 plane in CIELAB space (a-b)")
-plt.xlabel("a")
-plt.ylabel("b")
+    # 转换为 RGB
+    rgb = color.lab2rgb(lab)
+    rgb[~mask] = 1.0  # 圆外填白色（或你可以设为 np.nan）
 
-# 可选：加遮罩（灰色区域表示非法）
-rgb_invalid = np.ones_like(rgb)
-rgb_invalid[..., :] = 0.2  # 暗灰
-rgb[~valid_mask] = rgb_invalid[~valid_mask]
+    # 显示图像
+    plt.figure(figsize=(5, 5))
+    plt.imshow(rgb, extent=[-radius, radius, -radius, radius], origin="lower")
+    plt.xlabel("a")
+    plt.ylabel("b")
+    plt.title(f"ab 平面 (L = {L_value})")
+    plt.grid(False)
+    plt.gca().set_aspect("equal", "box")
+    plt.tight_layout()
+    plt.show()
 
-plt.show()
+
+if __name__ == "__main__":
+    plot_lab_ab_circle(L_value=75, radius=128)
